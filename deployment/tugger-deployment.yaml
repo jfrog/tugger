@@ -1,4 +1,4 @@
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: tugger-deployment
@@ -6,6 +6,9 @@ metadata:
     app: tugger
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: tugger
   template:
     metadata:
       labels:
@@ -13,7 +16,7 @@ spec:
     spec:
       containers:
       - name: tugger
-        image: jainishshah17/tugger:0.0.4
+        image: jainishshah17/tugger:0.1.1
         imagePullPolicy: Always
         env:
           - name: DOCKER_REGISTRY_URL
@@ -24,6 +27,8 @@ spec:
             value: "kube-system,default"
           - name: WHITELIST_REGISTRIES
             value: "jainishshah17"
+          - name: WEBHOOK_URL
+            value: "${WEBHOOK_URL}"
         ports:
           - containerPort: 443
             name: https

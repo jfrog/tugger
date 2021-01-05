@@ -1,0 +1,56 @@
+name: Lint and Test Chart
+
+on: pull_request
+
+jobs:
+  go-test:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: jainishshah17/tugger
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - uses: actions/setup-go@v2
+        with:
+          go-version: "^1.13.0"
+      - name: go test
+        run: |
+          cd cmd/tugger
+          go test . -cover -v
+  lint-test:
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: jainishshah17/tugger
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v1
+
+      - name: Lint Chart
+        run: helm lint chart/* -f chart/*/ci/lint-values.yaml
+
+      - name: Build
+        run: docker build . -t $IMAGE
+
+      - name: Create kind cluster
+        uses: helm/kind-action@v1.1.0
+
+      - name: Install
+        run: |
+          kind load docker-image $IMAGE --name=chart-testing
+          helm install $USER chart/tugger --debug --wait \
+            --set=createMutatingWebhook=true \
+            --set=image.tag=latest
+
+      - name: Test Mutation
+        timeout-minutes: 1
+        run: |
+          kubectl apply -f test/nginx.yaml
+          until [ "jainishshah17/nginx" = "$(kubectl -n nginx get po -l test=tugger -o jsonpath='{.items[0].spec.containers[0].image}')" ]
+          do
+            sleep 1
+          done
